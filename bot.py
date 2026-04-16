@@ -1,16 +1,35 @@
-from keep_alive import keep_alive
 import os
-from dotenv import load_dotenv 
+from dotenv import load_dotenv
 load_dotenv()
 
+# -------------------- Keep Alive (Flask) -------------------- #
+from flask import Flask
+from threading import Thread
+
+flask_app = Flask('')
+
+@flask_app.route('/')
+def home():
+    return "Bot is running!", 200
+
+@flask_app.route('/health')
+def health():
+    return "OK", 200
+
+def run_flask():
+    flask_app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+
+def keep_alive():
+    t = Thread(target=run_flask, daemon=True)
+    t.start()
+
+# -------------------- Discord Bot -------------------- #
 import discord
 from discord.ext import commands
 from discord import app_commands, Interaction
-from discord.ui import Modal, TextInput
 
-# --- DOĞRU INTENTS AYARI ---
-intents = discord.Intents.all() 
-bot = commands.Bot(command_prefix='/', intents=intents) # Prefix'i "/" yaptık
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix='/', intents=intents)
 tree = bot.tree
 
 # -------------------- IDs -------------------- #
@@ -175,7 +194,7 @@ async def sanction(interaction: discord.Interaction, player: discord.Member, bai
     await channel.send(embed=embed)
     await interaction.response.send_message("Done.", ephemeral=True)
 
-# -------------------- RUN --------------------
+# -------------------- RUN -------------------- #
 token = os.getenv('DISCORD_TOKEN')
 keep_alive()
 if token:
