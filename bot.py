@@ -212,7 +212,7 @@ async def sanction(interaction: discord.Interaction, player: discord.Member, bai
     await channel.send(embed=embed)
     await interaction.response.send_message("Done.", ephemeral=True)
 
--------------------- RUN --------------------
+# -------------------- RUN --------------------
 token = os.getenv('DISCORD_TOKEN')
 keep_alive()
 bot.run(token)
