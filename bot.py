@@ -8,8 +8,10 @@ from discord.ext import commands
 from discord import app_commands, Interaction
 from discord.ui import Modal, TextInput
 
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix='!', intents=intents)
+# --- DOĞRU INTENTS AYARI ---
+intents = discord.Intents.all() 
+bot = commands.Bot(command_prefix='/', intents=intents) # Prefix'i "/" yaptık
+tree = bot.tree
 
 # -------------------- IDs -------------------- #
 TEAM_ROLE_IDS = [
@@ -31,19 +33,13 @@ MANAGER_ROLE_ID = 1483846177727185039
 ASSISTANT_MANAGER_ROLE_ID = 1483846126816985220
 REFEREE_ROLE_ID = 1483846048815513823
 
-intents = discord.Intents.default()
-intents.members = True
-
-bot = commands.Bot(command_prefix="/", intents=intents)
-tree = bot.tree
-
 # -------------------- Bot Ready -------------------- #
 @bot.event
 async def on_ready():
     guild = discord.Object(id=GUILD_ID)
     bot.tree.copy_global_to(guild=guild)
     await bot.tree.sync(guild=guild)
-    print("Bot ready")
+    print(f"{bot.user} hazır ve giriş yaptı!")
 
 # -------------------- Checks -------------------- #
 def manager_only():
@@ -65,18 +61,14 @@ class OfferView(discord.ui.View):
     @discord.ui.button(label="Accept", style=discord.ButtonStyle.success)
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-
         if interaction.user.id != self.player.id:
             await interaction.followup.send("This offer is not for you.")
             return
-
         if len(self.team_role.members) >= MAX_PLAYERS:
             await interaction.followup.send("Squad is full.")
             return
-
         await self.player.add_roles(self.team_role)
         await interaction.followup.send(f"You joined {self.team_role.name}.")
-
         channel = bot.get_channel(TRANSFERS_CHANNEL_ID)
         if channel:
             count = len(self.team_role.members)
@@ -86,17 +78,14 @@ class OfferView(discord.ui.View):
                 color=discord.Color.green()
             )
             await channel.send(embed=embed)
-
         self.stop()
 
     @discord.ui.button(label="Reject", style=discord.ButtonStyle.danger)
     async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
-
         if interaction.user.id != self.player.id:
             await interaction.followup.send("This offer is not for you.")
             return
-
         await interaction.followup.send("You rejected the offer.")
         self.stop()
 
@@ -105,24 +94,19 @@ class OfferView(discord.ui.View):
 @manager_only()
 async def offer(interaction: discord.Interaction, player: discord.Member):
     await interaction.response.defer(ephemeral=True)
-
     manager = interaction.user
     team_role = next((r for r in manager.roles if r.id in TEAM_ROLE_IDS), None)
-
     if not team_role:
         await interaction.followup.send("You do not have a team role.")
         return
-
     if len(team_role.members) >= MAX_PLAYERS:
         await interaction.followup.send("Your squad is full.")
         return
-
     embed = discord.Embed(
         title="📄 Transfer Offer",
         description=f"{team_role.name} has sent you a transfer offer.\nDo you accept?",
         color=discord.Color.green()
     )
-
     try:
         await player.send(embed=embed, view=OfferView(team_role, player))
         await interaction.followup.send(f"Offer sent to {player.display_name}.")
@@ -133,59 +117,38 @@ async def offer(interaction: discord.Interaction, player: discord.Member):
 @manager_only()
 async def release(interaction: discord.Interaction, player: discord.Member):
     await interaction.response.defer(ephemeral=True)
-
     manager = interaction.user
     team_role = next((r for r in manager.roles if r.id in TEAM_ROLE_IDS), None)
-
     if not team_role:
         await interaction.followup.send("You do not have a team role.")
         return
-
     if team_role not in player.roles:
         await interaction.followup.send("Player is not in your team.")
         return
-
     await player.remove_roles(team_role)
     await interaction.followup.send(f"{player.display_name} released from {team_role.name}.")
 
-# -------------------- MATCHDAY (FIXED) -------------------- #
 @tree.command(name="matchday")
-@app_commands.describe(
-    manager="Select manager",
-    team="Select team role",
-    timestamp="Match time as Unix timestamp"
-)
+@app_commands.describe(manager="Select manager", team="Select team role", timestamp="Match time as Unix timestamp")
 async def matchday(interaction: discord.Interaction, manager: discord.Member, team: discord.Role, timestamp: int):
     await interaction.response.defer(ephemeral=True)
-
     if not any(role.id == MANAGER_ROLE_ID for role in manager.roles):
         await interaction.followup.send("Selected user is not a manager.")
         return
-
     if team.id not in TEAM_ROLE_IDS:
         await interaction.followup.send("Invalid team role.")
         return
-
-    # 🔥 FIX: ms girilirse otomatik düzelt
     if timestamp > 9999999999:
         timestamp = int(timestamp / 1000)
-
     sent = 0
-
     for member in team.members:
         try:
-            await member.send(
-                f"Match Reminder\n\nYou have a match today at <t:{timestamp}:f>.\nPlease prepare your team and be ready."
-            )
+            await member.send(f"Match Reminder\n\nYou have a match today at <t:{timestamp}:f>.\nPlease prepare your team and be ready.")
             sent += 1
         except:
             continue
+    await interaction.followup.send(f"Notification sent to {sent} players from {team.name}.")
 
-    await interaction.followup.send(
-        f"Notification sent to {sent} players from {team.name}."
-    )
-
-# -------------------- SANCTION -------------------- #
 @tree.command(name="sanction")
 @app_commands.describe(player="Player", bail="Bail", reason="Reason", duration="Duration")
 @app_commands.choices(bail=[
@@ -203,19 +166,19 @@ async def sanction(interaction: discord.Interaction, player: discord.Member, bai
     if not interaction.user.guild_permissions.manage_messages:
         await interaction.response.send_message("No permission.", ephemeral=True)
         return
-
     channel = bot.get_channel(SANCTIONS_CHANNEL_ID)
-
     embed = discord.Embed(title="WL SANCTION", color=discord.Color.red())
     embed.add_field(name="Player Got Suspended", value=player.mention, inline=False)
     embed.add_field(name="Bail", value=bail.value, inline=False)
     embed.add_field(name="Reason", value=reason, inline=False)
     embed.add_field(name="Duration", value=duration, inline=False)
-
     await channel.send(embed=embed)
     await interaction.response.send_message("Done.", ephemeral=True)
 
 # -------------------- RUN --------------------
 token = os.getenv('DISCORD_TOKEN')
 keep_alive()
-bot.run(token)
+if token:
+    bot.run(token)
+else:
+    print("Token bulunamadı!")
