@@ -8,6 +8,9 @@ from discord.ext import commands
 from discord import app_commands, Interaction
 from discord.ui import Modal, TextInput
 
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix='!', intents=intents)
+
 # -------------------- IDs -------------------- #
 TEAM_ROLE_IDS = [
     1485699791836151962,
